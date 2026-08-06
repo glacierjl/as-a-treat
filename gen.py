@@ -68,7 +68,7 @@ def update_bio(dry_run: bool = False) -> None:
 
 
 def write_status(
-    status: str, dry_run: bool = False, visibility: Visibility = Visibility("unlisted"), *spoiler: str
+    status: str, dry_run: bool = False, visibility: Visibility = Visibility("unlisted"), warning: bool = False, spoiler: str = None
 ) -> None:
     """Write a status to Mastodon"""
     if dry_run is False:
@@ -76,14 +76,14 @@ def write_status(
         mastodon = Mastodon(
             access_token=config.ACCESS_TOKEN, api_base_url=config.API_URL
         )
-        if spoiler.isEmpty() == "False":
-            mastodon.status_post(status=status, visibility=str(visibility), spoiler_text=spoiler)
+        if warning is True:
+            mastodon.status_post(status=status, visibility=str(visibility), spoiler_text=str(spoiler))
         else:
             mastodon.status_post(status=status, visibility=str(visibility))
         log.info('Posted: "%s"', status)
         print(f"Posted: {status}")
     else:
-        if spoiler.isEmpty() == "False":
+        if warning is True:
             print(f'Dry run: would have posted "{status}" with content warning "{spoiler}"')
             log.info('Dry run: would have posted "%s"', status)
             # TODO add log how it posts with spoiler
@@ -372,33 +372,36 @@ if __name__ == "__main__":
     folx = random.choice(available_folx)
     treat = random.choice(available_treats)
 
-    # preset content warning to empty becsuse julia doesn't know what the fuck it's doing lol
-    content_warning = ""
+    # preset this, just in case
+    #content_warning = None
+    #warning_text = ""
+    # why does this not work without???
+    #treat_text = treat
+    #alt_wording = False
 
     # Handle 'alternate wording' treats and content warnings
     if treat.startswith("{") and treat.endswith("}"):
-        if json.loads(treat).get("content_warning") != "" and "text" in json.loads(treat):
-            content_warning = json.loads(treat)["content_warning"]
-            log.debug('Found content warning: "%s", using it', content_warning)
-        else:
+        if json.loads(treat).get("content_warning") == "True" and "warning_text" in json.loads(treat):
+            content_warning = True
+            warning_text = json.loads(treat)["warning_text"]
+            log.debug('Found content warning: "%s", using it', warning_text)
+        #else:
             # Something went wrong with the formatting
-            log.error("Treat formatting error - invalid JSON: %s", treat)
-            sys.exit(1)
-        if json.loads(treat).get("alt_wording") == "True" and "text" in json.loads(
-            treat
-        ):
+            #log.error("Treat formatting error - invalid JSON: %s", treat)
+            #sys.exit(1)
+
+        if json.loads(treat).get("alt_wording") == "True" and "text" in json.loads(treat):
             alt_wording = True
             treat_text = json.loads(treat)["text"]
             log.debug('Using alternate wording for treat: "%s"', treat_text)
-        else:
+        #else:
             # Something went wrong with the formatting
-            log.error("Treat formatting error - invalid JSON: %s", treat)
-            sys.exit(1)
+            #log.error("Treat formatting error - invalid JSON: %s", treat)
+            #sys.exit(1)
     else:
+        content_warning = False
         alt_wording = False
         treat_text = treat
-
-    
 
     log.debug('Picked folx "%s" and treat "%s"', folx, treat_text)
 
@@ -413,7 +416,10 @@ if __name__ == "__main__":
     else:
         status = f"{folx} can have {treat_text}, as a {treat_or_threat}"
 
-    write_status(status, args.dry_run, args.visibility, content_warning)
+    if content_warning == True:
+        write_status(status, args.dry_run, args.visibility, content_warning, warning_text)
+    else:
+        write_status(status, args.dry_run, args.visibility, )
 
     # Upload logs
     if config.DONT_UPLOAD_LOGS:
