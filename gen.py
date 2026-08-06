@@ -68,7 +68,7 @@ def update_bio(dry_run: bool = False) -> None:
 
 
 def write_status(
-    status: str, dry_run: bool = False, visibility: Visibility = Visibility("unlisted")
+    status: str, dry_run: bool = False, visibility: Visibility = Visibility("unlisted"), *spoiler: str
 ) -> None:
     """Write a status to Mastodon"""
     if dry_run is False:
@@ -76,12 +76,20 @@ def write_status(
         mastodon = Mastodon(
             access_token=config.ACCESS_TOKEN, api_base_url=config.API_URL
         )
-        mastodon.status_post(status=status, visibility=str(visibility))
+        if spoiler.isEmpty() == "False":
+            mastodon.status_post(status=status, visibility=str(visibility), spoiler_text=spoiler)
+        else:
+            mastodon.status_post(status=status, visibility=str(visibility))
         log.info('Posted: "%s"', status)
         print(f"Posted: {status}")
     else:
-        print(f'Dry run: would have posted "{status}"')
-        log.info('Dry run: would have posted "%s"', status)
+        if spoiler.isEmpty() == "False":
+            print(f'Dry run: would have posted "{status}" with content warning "{spoiler}"')
+            log.info('Dry run: would have posted "%s"', status)
+            # TODO add log how it posts with spoiler
+        else:
+            print(f'Dry run: would have posted "{status}"')
+            log.info('Dry run: would have posted "%s"', status)
 
 
 def should_be_threat():
@@ -364,8 +372,18 @@ if __name__ == "__main__":
     folx = random.choice(available_folx)
     treat = random.choice(available_treats)
 
-    # Handle 'alternate wording' treats
+    # preset content warning to empty becsuse julia doesn't know what the fuck it's doing lol
+    content_warning = ""
+
+    # Handle 'alternate wording' treats and content warnings
     if treat.startswith("{") and treat.endswith("}"):
+        if json.loads(treat).get("content_warning") != "" and "text" in json.loads(treat):
+            content_warning = json.loads(treat)["content_warning"]
+            log.debug('Found content warning: "%s", using it', content_warning)
+        else:
+            # Something went wrong with the formatting
+            log.error("Treat formatting error - invalid JSON: %s", treat)
+            sys.exit(1)
         if json.loads(treat).get("alt_wording") == "True" and "text" in json.loads(
             treat
         ):
@@ -380,6 +398,8 @@ if __name__ == "__main__":
         alt_wording = False
         treat_text = treat
 
+    
+
     log.debug('Picked folx "%s" and treat "%s"', folx, treat_text)
 
     # Save the chosen folx and treat so they can't be picked again
@@ -393,7 +413,7 @@ if __name__ == "__main__":
     else:
         status = f"{folx} can have {treat_text}, as a {treat_or_threat}"
 
-    write_status(status, args.dry_run, args.visibility)
+    write_status(status, args.dry_run, args.visibility, content_warning)
 
     # Upload logs
     if config.DONT_UPLOAD_LOGS:
