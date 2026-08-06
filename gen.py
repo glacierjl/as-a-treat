@@ -385,19 +385,19 @@ if __name__ == "__main__":
             content_warning = True
             warning_text = json.loads(treat)["warning_text"]
             log.debug('Found content warning: "%s", using it', warning_text)
-        #else:
+        else:
             # Something went wrong with the formatting
-            #log.error("Treat formatting error - invalid JSON: %s", treat)
-            #sys.exit(1)
+            log.error("Treat formatting error - invalid JSON: %s", treat)
+            sys.exit(1)
 
         if json.loads(treat).get("alt_wording") == "True" and "text" in json.loads(treat):
             alt_wording = True
             treat_text = json.loads(treat)["text"]
             log.debug('Using alternate wording for treat: "%s"', treat_text)
-        #else:
+        else:
             # Something went wrong with the formatting
-            #log.error("Treat formatting error - invalid JSON: %s", treat)
-            #sys.exit(1)
+            log.error("Treat formatting error - invalid JSON: %s", treat)
+            sys.exit(1)
     else:
         content_warning = False
         alt_wording = False
@@ -419,7 +419,7 @@ if __name__ == "__main__":
     if content_warning == True:
         write_status(status, args.dry_run, args.visibility, content_warning, warning_text)
     else:
-        write_status(status, args.dry_run, args.visibility, )
+        write_status(status, args.dry_run, args.visibility)
 
     # Upload logs
     if config.DONT_UPLOAD_LOGS:
